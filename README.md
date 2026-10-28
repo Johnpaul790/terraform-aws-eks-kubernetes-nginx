@@ -82,16 +82,18 @@ The `nginx-config.yaml` manifest defines two Kubernetes resources:
 - **Deployment:** Creates and manages one NGINX Pod using the `nginx:1.30.6` container image.
 - **Service:** Exposes the application through an AWS Load Balancer using HTTP on port 80.
 
+
 **4. Application Traffic Flow**
 
 When a user accesses the application through the AWS Load Balancer DNS name:
 
-1. The browser sends an HTTP request to the AWS Load Balancer on port 80.
-2. The Load Balancer forwards the request to a Kubernetes worker node through the Service's assigned NodePort.
-3. Kubernetes Service networking directs the request to the NGINX Pod.
-4. NGINX processes the request and returns the welcome page to the browser.
+- **Browser:** Sends an HTTP request to the AWS Load Balancer on port 80.
+- **AWS Load Balancer:** Forwards the request to a Kubernetes worker node through the Service's assigned NodePort.
+- **Kubernetes Service:** Routes the request to the NGINX Pod.
+- **NGINX Pod:** Processes the request and returns the welcome page to the browser.
 
-The Kubernetes Service is a logical networking resource that routes traffic to the application Pods, not a separate physical server.
+The Kubernetes Service is a logical networking resource that routes traffic to application Pods, not a separate physical server.
+
 
 **5. Outbound Connectivity**
 
