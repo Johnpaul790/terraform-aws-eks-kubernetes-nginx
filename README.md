@@ -113,7 +113,7 @@ It is not part of the incoming HTTP traffic path used to access NGINX.
 | Terraform EKS Module | `21.29.0` |
 | Terraform VPC Module | `6.7.3` |
 | Amazon EKS | Managed Kubernetes cluster |
-| Kubernetes | Version `1.33` |
+| Kubernetes | Version `1.36` |
 | Amazon EC2 | `t3.micro` managed worker nodes |
 | Amazon Linux | `AL2023_x86_64_STANDARD` |
 | Amazon VPC | Public/private subnets and routing |
