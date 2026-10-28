@@ -1,0 +1,16 @@
+# Terraform local files
+.terraform/
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+
+# Terraform variables (may contain sensitive data)
+*.tfvars
+*.tfvars.json
+
+# VS Code workspace settings
+.vscode/
+
+# macOS Finder files
+.DS_Store
