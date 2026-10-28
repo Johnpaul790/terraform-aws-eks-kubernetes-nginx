@@ -12,3 +12,5 @@ public_subnet_cidr_blocks = [
   "10.0.5.0/24",
   "10.0.6.0/24"
 ]
+
+my_public_ip_cidr = "YOUR_PUBLIC_IP/32"
