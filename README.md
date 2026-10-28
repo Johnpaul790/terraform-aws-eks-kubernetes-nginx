@@ -3,11 +3,11 @@
 
 ## Project Overview
 
-This project demonstrates the provisioning of an **Amazon Elastic Kubernetes Service (EKS)** cluster using **Terraform**, followed by the deployment of a containerized **NGINX web application** using Kubernetes.
+This project demonstrates the provisioning of an Amazon Elastic Kubernetes Service (EKS) cluster using Terraform, followed by the deployment of a containerized NGINX web application using Kubernetes.
 
 The AWS infrastructure includes a custom VPC, public and private subnets, a NAT Gateway, and an EKS managed node group. The NGINX application is deployed using Kubernetes manifests and exposed to the internet through an AWS Load Balancer.
 
-The project demonstrates hands-on experience with **Infrastructure as Code (IaC), AWS cloud networking, Kubernetes orchestration, application deployment, load balancing, and infrastructure lifecycle management**.
+The project demonstrates hands-on experience with Infrastructure as Code (IaC), AWS cloud networking, Kubernetes orchestration, application deployment, load balancing, and infrastructure lifecycle management.
 
 The deployment was successfully tested, with three healthy Kubernetes worker nodes, a running NGINX Pod, and the NGINX welcome page accessible externally through the AWS Load Balancer.
 
@@ -79,18 +79,18 @@ The Kubernetes API endpoint is publicly accessible for cluster administration fr
 
 The `nginx-config.yaml` manifest defines two Kubernetes resources:
 
-- **Deployment:** Creates and manages one NGINX Pod using the `nginx:1.30.6` container image.
-- **Service:** Exposes the application through an AWS Load Balancer using HTTP on port 80.
+- Deployment: Creates and manages one NGINX Pod using the `nginx:1.30.6` container image.
+- Service: Exposes the application through an AWS Load Balancer using HTTP on port 80.
 
 
 **4. Application Traffic Flow**
 
 When a user accesses the application through the AWS Load Balancer DNS name:
 
-- **Browser:** Sends an HTTP request to the AWS Load Balancer on port 80.
-- **AWS Load Balancer:** Forwards the request to a Kubernetes worker node through the Service's assigned NodePort.
-- **Kubernetes Service:** Routes the request to the NGINX Pod.
-- **NGINX Pod:** Processes the request and returns the welcome page to the browser.
+- Browser: Sends an HTTP request to the AWS Load Balancer on port 80.
+- AWS Load Balancer: Forwards the request to a Kubernetes worker node through the Service's assigned NodePort.
+- Kubernetes Service: Routes the request to the NGINX Pod.
+- NGINX Pod: Processes the request and returns the welcome page to the browser.
 
 The Kubernetes Service is a logical networking resource that routes traffic to application Pods, not a separate physical server.
 
@@ -215,7 +215,7 @@ Before deploying the project, ensure the following tools and requirements are av
 - `kubectl` installed with a version compatible with the EKS cluster
 - Git installed locally
 
-**Note:** Provisioning EKS, EC2 instances, NAT Gateways, and AWS Load Balancers can incur charges. Destroy the infrastructure when it is no longer needed.
+Note: Provisioning EKS, EC2 instances, NAT Gateways, and AWS Load Balancers can incur charges. Destroy the infrastructure when it is no longer needed.
 
 ---
 
@@ -333,7 +333,7 @@ Open the hostname in your browser using:
 http://<load-balancer-dns-name>
 ```
 
-The application is exposed through **HTTP on port 80**. HTTPS is not configured for this demonstration.
+The application is exposed through HTTP on port 80. HTTPS is not configured for this demonstration.
 
 When the Load Balancer and backend connections are ready, the default NGINX welcome page should appear.
 
@@ -420,18 +420,6 @@ terraform destroy
 Review and confirm the destruction plan.
 
 Finally, verify that no project-related EKS clusters, EC2 instances, NAT Gateways, Load Balancers, or other chargeable AWS resources remain.
-
----
-
-## Future Improvements
-
-Planned improvements to further develop this project include:
-
-- Implementing **GitHub Actions** for automated Terraform formatting and validation.
-- Adding automated Kubernetes manifest validation.
-- Exploring automated Kubernetes application deployment through GitHub Actions.
-- Introducing health checks, resource requests/limits, and additional application availability improvements.
-- Exploring HTTPS/TLS configuration for secure application access.
 
 ---
 
