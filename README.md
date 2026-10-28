@@ -1,326 +1,444 @@
+
 # AWS EKS with Terraform — Kubernetes NGINX Deployment
 
 ## Project Overview
 
-A Cloud/DevOps portfolio project that provisions AWS networking and an Amazon EKS cluster with Terraform, then deploys NGINX using a Kubernetes Deployment and an internet-facing `LoadBalancer` Service in Frankfurt (`eu-central-1`).
+This project demonstrates the provisioning of an **Amazon Elastic Kubernetes Service (EKS)** cluster using **Terraform**, followed by the deployment of a containerized **NGINX web application** using Kubernetes.
 
-The completed lab test confirmed three ready worker nodes, a running NGINX Pod, a successful Deployment rollout, and external browser access to the standard **"Welcome to nginx!"** page over HTTP. This personal home lab was built to practice infrastructure provisioning, Kubernetes operations, troubleshooting, and cleanup. It is not a production environment.
+The AWS infrastructure includes a custom VPC, public and private subnets, a NAT Gateway, and an EKS managed node group. The NGINX application is deployed using Kubernetes manifests and exposed to the internet through an AWS Load Balancer.
+
+The project demonstrates hands-on experience with **Infrastructure as Code (IaC), AWS cloud networking, Kubernetes orchestration, application deployment, load balancing, and infrastructure lifecycle management**.
+
+The deployment was successfully tested, with three healthy Kubernetes worker nodes, a running NGINX Pod, and the NGINX welcome page accessible externally through the AWS Load Balancer.
 
 ## Key Achievements
 
-- Provisioned the VPC and EKS infrastructure using Terraform and pinned AWS module versions.
-- Configured public and private subnet tiers, Kubernetes subnet discovery tags, and a single NAT Gateway for outbound connectivity.
-- Configured an EKS managed node group in private subnets; all three workers reported `Ready` during testing.
-- Deployed one NGINX replica and exposed it through a Kubernetes `LoadBalancer` Service on port `80`.
-- Verified Pod readiness, zero restarts at the time of inspection, and a successful Deployment rollout.
-- Confirmed external HTTP access through the AWS load balancer and resolved an initial HTTPS connection attempt by using the configured HTTP endpoint.
+- Provisioned an Amazon EKS cluster and supporting AWS infrastructure using Terraform.
+- Configured a custom VPC with public and private subnets across three Availability Zones.
+- Configured a NAT Gateway to provide outbound internet connectivity for private subnet resources.
+- Deployed an EKS managed node group consisting of three EC2 worker nodes.
+- Configured essential EKS add-ons, including CoreDNS, kube-proxy, VPC CNI, and EKS Pod Identity Agent.
+- Deployed a containerized NGINX application using a Kubernetes Deployment.
+- Exposed the application externally using a Kubernetes `LoadBalancer` Service.
+- Successfully verified Kubernetes node readiness, Pod health, Deployment rollout, and external application accessibility.
+- Practiced infrastructure validation, Kubernetes troubleshooting, and AWS resource lifecycle management.
 
-## Architecture Diagram
+---
 
-![AWS EKS architecture showing public and private subnet tiers, NGINX application traffic, Kubernetes API administration, and outbound NAT connectivity](architecture.svg)
+## Architecture
 
-[View the full-size SVG diagram](architecture.svg) · [Editable Mermaid version](architecture.mmd)
+The infrastructure is provisioned in the AWS Frankfurt region (`eu-central-1`) using Terraform. Amazon EKS provides the managed Kubernetes control plane, while EC2 worker nodes run application workloads inside private subnets.
 
-**Traffic paths:** Blue arrows show inbound HTTP application traffic; thick teal arrows show outbound connectivity through NAT. Dashed purple arrows show Kubernetes administration, and dashed gray arrows show workload relationships. The Service box represents logical Kubernetes routing to the selected Pod. The NAT Gateway is separate from the inbound HTTP request path.
+The application is publicly accessible through an AWS Load Balancer, while the Kubernetes API endpoint allows cluster administration from a local workstation.
 
-The diagram includes the subnet CIDRs from [`terraform.tfvars.example`](terraform.tfvars.example), the EKS cluster and managed node group, and the single NGINX Pod. Worker placement across individual subnets is not fixed by this diagram.
+```mermaid
+flowchart TB
+    User["Internet / Web Browser"]
+    Developer["Developer Workstation / kubectl"]
+    API["Amazon EKS Managed Control Plane"]
 
-Terraform provisions the VPC and EKS infrastructure. Applying the Kubernetes manifest requests AWS load balancing through the Service. The manifest leaves the load balancer class and type-specific annotations unspecified, so the diagram uses a generic AWS load balancer label. See [AWS EKS load balancing guidance](https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html) for controller behavior.
+    subgraph VPC["AWS VPC — 10.0.0.0/16"]
+        direction TB
+
+        subgraph Public["Public Subnets — 3 Availability Zones"]
+            LB["Internet-facing AWS Load Balancer"]
+            NAT["NAT Gateway"]
+        end
+
+        subgraph Private["Private Subnets — 3 Availability Zones"]
+            Nodes["EKS Managed Worker Nodes — 3 x t3.micro"]
+            Pod["NGINX Pod — 1 Replica"]
+        end
+
+        LB -->|"NodePort / Kubernetes Service routing"| Nodes
+        Nodes -->|"Forward request to NGINX"| Pod
+        Nodes -.->|"Outbound internet access"| NAT
+    end
+
+    User -->|"HTTP Port 80"| LB
+    Developer -.->|"HTTPS / kubectl"| API
+    API -.->|"Kubernetes cluster management"| Nodes
+    NAT -.->|"Outbound through Internet Gateway"| Internet["Internet"]
+```
+
+### How the Architecture Works
+
+**1. Infrastructure Provisioning**
+
+Terraform provisions the AWS networking infrastructure and EKS cluster using the official Terraform AWS VPC and EKS modules.
+
+The VPC contains three public and three private subnets across three Availability Zones. Public subnets provide internet-facing connectivity for the AWS Load Balancer, while the private subnets host the EKS worker nodes.
+
+**2. Amazon EKS Cluster**
+
+Amazon EKS manages the Kubernetes control plane, while an EKS managed node group provides three `t3.micro` EC2 instances running Amazon Linux 2023.
+
+The Kubernetes API endpoint is publicly accessible for cluster administration from the developer's workstation. This management endpoint is separate from the application Load Balancer.
+
+**3. Kubernetes Application Deployment**
+
+The `nginx-config.yaml` manifest defines two Kubernetes resources:
+
+- **Deployment:** Creates and manages one NGINX Pod using the `nginx:1.30.6` container image.
+- **Service:** Exposes the application through an AWS Load Balancer using HTTP on port 80.
+
+**4. Application Traffic Flow**
+
+When a user accesses the application through the AWS Load Balancer DNS name:
+
+1. The browser sends an HTTP request to the AWS Load Balancer on port 80.
+2. The Load Balancer forwards the request to a Kubernetes worker node through the Service's assigned NodePort.
+3. Kubernetes Service networking directs the request to the NGINX Pod.
+4. NGINX processes the request and returns the welcome page to the browser.
+
+The Kubernetes Service is a logical networking resource that routes traffic to the application Pods, not a separate physical server.
+
+**5. Outbound Connectivity**
+
+The NAT Gateway enables resources in the private subnets to initiate outbound internet connections, such as downloading container images.
+
+It is not part of the incoming HTTP traffic path used to access NGINX.
+
+---
 
 ## Technology Stack
 
-| Technology | Repository version or configuration |
-| --- | --- |
-| Terraform | Root configuration does not pin the CLI; the [EKS module requires `>= 1.5.7`](https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/versions.tf) |
-| AWS provider | `hashicorp/aws`; constraint `~> 6.0`; locked version `6.68.0` |
-| Terraform EKS module | `terraform-aws-modules/eks/aws` — `21.29.0` |
-| Terraform VPC module | `terraform-aws-modules/vpc/aws` — `6.7.3` |
-| AWS / Amazon EKS | Region `eu-central-1`; managed cluster `myapp-eks-cluster` |
-| Kubernetes | Version `1.33`; Deployment and `LoadBalancer` Service |
-| Amazon EC2 | Managed node group `dev`; `t3.micro` worker instances |
-| Worker operating system | `AL2023_x86_64_STANDARD` — standard Amazon Linux 2023 x86_64 |
-| Amazon VPC | Public and private subnet tiers; single NAT Gateway |
-| NGINX | Container image `nginx:1.30.6`; one replica |
-| YAML | `nginx-config.yaml`; `apps/v1` Deployment and `v1` Service manifests |
+| Technology | Purpose / Configuration |
+|---|---|
+| Amazon Web Services (AWS) | Cloud infrastructure |
+| Terraform | Infrastructure provisioning and management |
+| Terraform AWS Provider | `~> 6.0` |
+| Terraform EKS Module | `21.29.0` |
+| Terraform VPC Module | `6.7.3` |
+| Amazon EKS | Managed Kubernetes cluster |
+| Kubernetes | Version `1.33` |
+| Amazon EC2 | `t3.micro` managed worker nodes |
+| Amazon Linux | `AL2023_x86_64_STANDARD` |
+| Amazon VPC | Public/private subnets and routing |
+| NAT Gateway | Outbound connectivity for private subnets |
+| AWS Load Balancer | External application access |
+| NGINX | Containerized web application (`1.30.6`) |
+| YAML | Kubernetes resource configuration |
 
-Versions and settings come from the Terraform files, `.terraform.lock.hcl`, and `nginx-config.yaml`. The lockfile records provider selections; it does not pin the local AWS CLI or kubectl versions.
+## AWS Infrastructure Configuration
 
-## AWS Infrastructure and Networking
+### VPC and Networking
 
-The network inputs are defined in [`terraform.tfvars.example`](terraform.tfvars.example) and consumed by [`vpc.tf`](vpc.tf).
+The project uses the Terraform AWS VPC module to provision the networking infrastructure.
+
+| Resource | Configuration |
+|---|---|
+| AWS Region | `eu-central-1` (Frankfurt) |
+| VPC Name | `myapp-vpc` |
+| VPC CIDR | `10.0.0.0/16` |
+| Private Subnet 1 | `10.0.1.0/24` |
+| Private Subnet 2 | `10.0.2.0/24` |
+| Private Subnet 3 | `10.0.3.0/24` |
+| Public Subnet 1 | `10.0.4.0/24` |
+| Public Subnet 2 | `10.0.5.0/24` |
+| Public Subnet 3 | `10.0.6.0/24` |
+| NAT Gateway | Enabled |
+| NAT Configuration | Single NAT Gateway |
+| DNS Hostnames | Enabled |
+
+The public and private subnets include Kubernetes-specific tags that support AWS Load Balancer subnet discovery.
+
+### EKS Cluster Configuration
 
 | Setting | Configuration |
-| --- | --- |
-| AWS Region | `eu-central-1` — Frankfurt |
-| VPC name | `myapp-vpc` |
-| VPC CIDR | `10.0.0.0/16` |
-| Private subnet CIDRs | `10.0.1.0/24`, `10.0.2.0/24`, `10.0.3.0/24` |
-| Public subnet CIDRs | `10.0.4.0/24`, `10.0.5.0/24`, `10.0.6.0/24` |
-| Availability Zones | Discovered using `aws_availability_zones`; zone names are not hardcoded |
-| NAT Gateway | Enabled; one shared NAT Gateway (`single_nat_gateway = true`) |
-| DNS hostnames | Enabled (`enable_dns_hostnames = true`) |
-| Public subnet discovery tag | `kubernetes.io/role/elb = 1` |
-| Private subnet discovery tag | `kubernetes.io/role/internal-elb = 1` |
-| Cluster association tag | `kubernetes.io/cluster/myapp-eks-cluster = shared` |
+|---|---|
+| Cluster Name | `myapp-eks-cluster` |
+| Kubernetes Version | `1.33` |
+| Node Group | `dev` |
+| Instance Type | `t3.micro` |
+| AMI Type | `AL2023_x86_64_STANDARD` |
+| Desired Nodes | 3 |
+| Minimum Nodes | 1 |
+| Maximum Nodes | 3 |
+| Worker Node Subnets | Private |
+| Kubernetes API Endpoint | Public access enabled |
 
-**Cluster and compute:** [`eks-cluster.tf`](eks-cluster.tf) configures cluster `myapp-eks-cluster` and managed node group `dev` with three desired workers, a minimum of one, and a maximum of three. Workers use `t3.micro` instances and the standard `AL2023_x86_64_STANDARD` AMI type. Public EKS API access and cluster creator administrator access are enabled.
+The cluster includes the following EKS add-ons:
 
-**Private worker placement:** The node group uses the VPC's private subnets, keeping workers behind the public application entry point. The public load balancer provides inbound application access, while the [NAT Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html) supports outbound connections such as container image pulls.
+- CoreDNS
+- kube-proxy
+- VPC CNI
+- EKS Pod Identity Agent
 
-**Cluster add-ons:** CoreDNS, kube-proxy, VPC CNI, and EKS Pod Identity Agent are configured without explicit add-on version pins. VPC CNI (`vpc-cni`) and EKS Pod Identity Agent (`eks-pod-identity-agent`) use `before_compute = true` to establish their module dependencies before worker compute is created.
+The VPC CNI and EKS Pod Identity Agent are configured with `before_compute = true` in the Terraform EKS module.
 
-**Application exposure:** [`nginx-config.yaml`](nginx-config.yaml) defines Deployment `nginx` with one replica and Service `nginx` with type `LoadBalancer`. The Service selects `app: nginx` Pods and forwards TCP port `80` to container port `80`, serving HTTP. Application TLS is not configured.
+---
 
 ## Project Structure
 
 ```text
 terraform-aws-eks-kubernetes-nginx/
-├── .gitignore                 # Local Terraform files and private variables
-├── .terraform.lock.hcl        # Provider versions and checksums
-├── README.md
-├── architecture.mmd          # Editable Mermaid architecture diagram
-├── architecture.svg          # Architecture image displayed in this README
-├── eks-cluster.tf             # EKS cluster, add-ons, and managed node group
-├── nginx-config.yaml          # NGINX Deployment and LoadBalancer Service
+├── eks-cluster.tf
+├── vpc.tf
+├── providers.tf
+├── nginx-config.yaml
+├── terraform.tfvars.example
+├── .terraform.lock.hcl
+├── .gitignore
 ├── pictures/
-│   └── nginx-welcome.png      # NGINX browser verification screenshot
-├── providers.tf               # AWS provider source and version constraint
-├── terraform.tfvars.example   # Example network inputs
-└── vpc.tf                     # Region, VPC, subnets, NAT, and discovery tags
+│   └── nginx-welcome.png
+└── README.md
 ```
 
-Terraform state, private `.tfvars` files, downloaded Terraform dependencies, and local editor settings are excluded by `.gitignore`.
+### File Descriptions
+
+| File | Description |
+|---|---|
+| `eks-cluster.tf` | EKS cluster, managed node group, and add-ons |
+| `vpc.tf` | AWS VPC, public/private subnets, NAT Gateway, and networking tags |
+| `providers.tf` | Terraform provider configuration |
+| `nginx-config.yaml` | Kubernetes Deployment and LoadBalancer Service |
+| `terraform.tfvars.example` | Example VPC and subnet configuration |
+| `.terraform.lock.hcl` | Locked Terraform provider versions and checksums |
+| `.gitignore` | Prevents local Terraform state and private files from being committed |
+| `pictures/` | Project deployment screenshots |
+| `README.md` | Project documentation |
+
+Sensitive or machine-specific files, including Terraform state files, the local `terraform.tfvars`, and downloaded providers, are excluded from version control.
+
+---
 
 ## Prerequisites
 
-- **Terraform `1.5.7` or later**, satisfying the pinned EKS module's minimum requirement.
-- **AWS CLI v2** with valid credentials for the intended AWS account and profile.
-- **kubectl** compatible with Kubernetes `1.33`. AWS supports the same minor version or one minor version earlier or later; see [EKS kubeconfig prerequisites](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html).
-- **IAM permissions** to provision and delete EKS, EC2/VPC, IAM roles and policies (including passing roles), and the modules' dependent resources. Elastic Load Balancing read permissions are needed for the cleanup inspection commands.
-- **Git** for cloning the repository.
+Before deploying the project, ensure the following tools and requirements are available:
 
-**AWS charges apply:** EKS, EC2 workers, NAT Gateways, load balancers, storage, public IPv4 addresses, and data transfer can incur charges. Use the [cleanup procedure](#infrastructure-cleanup) when finished.
+- An AWS account with the necessary IAM permissions
+- Terraform installed locally
+- AWS CLI v2 installed and configured
+- `kubectl` installed with a version compatible with the EKS cluster
+- Git installed locally
 
-## Deployment Instructions
+**Note:** Provisioning EKS, EC2 instances, NAT Gateways, and AWS Load Balancers can incur charges. Destroy the infrastructure when it is no longer needed.
 
-Run commands from a local terminal, checking each result before proceeding. Terraform provisions infrastructure; kubectl deploys the application afterward.
+---
 
-1. **Clone the repository.**
+## Deployment Guide
 
-   ```bash
-   git clone https://github.com/Johnpaul790/terraform-aws-eks-kubernetes-nginx.git
-   cd terraform-aws-eks-kubernetes-nginx
-   ```
+### Step 1: Clone the Repository
 
-2. **Create the local Terraform input file.**
+```bash
+git clone https://github.com/Johnpaul790/terraform-aws-eks-kubernetes-nginx.git
 
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   ```
+cd terraform-aws-eks-kubernetes-nginx
+```
 
-   Review the network inputs in [`terraform.tfvars.example`](terraform.tfvars.example) and adjust the local copy if needed. The local `.tfvars` file is ignored by Git.
+Create a local Terraform variables file using the provided example:
 
-3. **Configure AWS credentials and verify the identity.**
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
 
-   Configure the AWS CLI locally with `aws configure` or your existing SSO/profile setup. If using a named profile, select it with `export AWS_PROFILE=your-profile-name`, then verify:
+Review the VPC and subnet values before deploying.
 
-   ```bash
-   aws sts get-caller-identity
-   ```
+Verify your AWS credentials:
 
-   Confirm the intended AWS account and IAM identity. Use the cluster creator identity for the later kubectl steps, or another identity explicitly granted cluster access.
+```bash
+aws sts get-caller-identity
+```
 
-4. **Initialize Terraform.**
+### Step 2: Provision AWS Infrastructure with Terraform
 
-   ```bash
-   terraform init
-   ```
+Initialize Terraform:
 
-5. **Check formatting and validate the configuration.**
+```bash
+terraform init
+```
 
-   ```bash
-   terraform fmt -check -recursive
-   terraform validate
-   ```
+Check Terraform formatting:
 
-   If formatting differences are reported, run `terraform fmt -recursive`, review the diff, and repeat the check. [Terraform validation](https://developer.hashicorp.com/terraform/cli/commands/validate) checks configuration syntax and internal consistency; AWS permissions, quotas, and runtime provisioning constraints still need to be satisfied.
+```bash
+terraform fmt -check -recursive
+```
 
-6. **Review the infrastructure plan and apply it.**
+Validate the Terraform configuration:
 
-   ```bash
-   terraform plan
-   terraform apply
-   ```
+```bash
+terraform validate
+```
 
-   Review the proposed resources and the apply confirmation before approving creation. Provisioning the cluster and registering workers can take several minutes.
+Review the infrastructure changes:
 
-7. **Configure Kubernetes access and select the application namespace.**
+```bash
+terraform plan
+```
 
-   ```bash
-   aws eks update-kubeconfig --region eu-central-1 --name myapp-eks-cluster
-   kubectl config current-context
-   kubectl config set-context --current --namespace=default
-   ```
+Provision the infrastructure:
 
-   Confirm that the context identifies `myapp-eks-cluster`. The remaining unqualified application commands use the `default` namespace selected here.
+```bash
+terraform apply
+```
 
-8. **Verify worker readiness.**
+Review the proposed changes before confirming the deployment.
 
-   ```bash
-   kubectl get nodes
-   ```
+Terraform creates the configured VPC networking resources, EKS cluster, and managed worker nodes.
 
-   Wait for all three workers to report `Ready` for a fresh deployment using this configuration.
+### Step 3: Configure Kubernetes Access
 
-9. **Deploy NGINX.**
+After the EKS cluster has been created, update the local Kubernetes configuration:
 
-   ```bash
-   kubectl apply -f nginx-config.yaml
-   ```
+```bash
+aws eks update-kubeconfig \
+  --region eu-central-1 \
+  --name myapp-eks-cluster
+```
 
-10. **Verify the Deployment, Pod, and Service.**
+Verify connectivity to the cluster:
 
-    ```bash
-    kubectl get pods -o wide
-    kubectl get svc nginx
-    kubectl rollout status -n default deployment/nginx --timeout=60s
-    ```
+```bash
+kubectl get nodes
+```
 
-    Confirm one NGINX Pod with `READY` equal to `1/1`, status `Running`, and a successful rollout. The Service may initially show `<pending>` while AWS provisions the load balancer.
+The worker nodes should report `Ready` when they have successfully joined the cluster.
 
-11. **Retrieve the AWS load balancer DNS hostname.**
+### Step 4: Deploy NGINX to Kubernetes
 
-    ```bash
-    kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}'
-    ```
+Apply the Kubernetes manifest:
 
-    Wait for a nonempty hostname; use `kubectl get svc nginx -w` to watch provisioning, then stop watching with `Ctrl+C`. The hostname is temporary and may change when the Service or load balancer is recreated. Retrieve it for each deployment.
+```bash
+kubectl apply -f nginx-config.yaml
+```
 
-12. **Access the NGINX welcome page over HTTP.**
+Check the NGINX Pod:
 
-    After the Service has a hostname:
+```bash
+kubectl get pods 
+```
 
-    ```bash
-    NGINX_LB_HOSTNAME=$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-    printf 'Open in your browser: http://%s\n' "$NGINX_LB_HOSTNAME"
-    curl --fail --show-error --connect-timeout 10 --max-time 30 "http://${NGINX_LB_HOSTNAME}"
-    ```
+Verify the Deployment rollout:
 
-    Open the printed URL using **`http://` on port `80`**. Using `https://` will not reach a configured TLS listener in this lab. Allow additional time for DNS propagation and backend health checks after the hostname appears.
+```bash
+kubectl rollout status -n default deployment/nginx
+```
 
-## Deployment Verification and Screenshots
+Check the Kubernetes Service:
 
-The following results were observed during the completed lab test:
+```bash
+kubectl get svc nginx
+```
 
-| Verification | Observed result |
-| --- | --- |
-| EKS workers | Three worker nodes reported `Ready` |
-| NGINX Pod | `READY: 1/1`, `STATUS: Running` |
-| Container restarts | `0` at the time of inspection |
-| LoadBalancer Service | Service `nginx` received an AWS ELB DNS hostname |
-| Deployment rollout | `kubectl rollout status deployment/nginx --timeout=60s` returned `deployment "nginx" successfully rolled out` |
-| External browser access | Initial HTTPS attempt was unsuccessful; HTTP on port `80` displayed **"Welcome to nginx!"** |
+The Service should display an AWS Load Balancer DNS hostname once the Load Balancer has been provisioned.
 
-The screenshot below captures the successful browser result. It omits the browser address bar and the temporary load balancer hostname. The test results describe the completed lab session; retrieve the current hostname and repeat the checks for a new deployment.
+### Step 5: Access the NGINX Application
 
-![NGINX welcome page from the successful HTTP browser test](pictures/nginx-welcome.png)
+Open the hostname in your browser using:
 
-## Troubleshooting
+```text
+http://<load-balancer-dns-name>
+```
 
-| Symptom | Checks and next steps |
-| --- | --- |
-| NGINX URL does not load | Retrieve the hostname from `kubectl get svc nginx` and test it with the HTTP command above. Check the Pod, Service endpoints, and AWS backend health. |
-| HTTPS connection fails | Use `http://` on port `80`. This manifest configures HTTP; it has no TLS listener or certificate. |
-| Service hostname remains `<pending>` | Run `kubectl describe svc nginx` and `kubectl get events --sort-by=.metadata.creationTimestamp`. Check provisioning events, subnet discovery tags, permissions, and AWS quotas. |
-| Hostname exists but traffic still fails | Allow time for DNS propagation and load balancer health checks. Inspect the port `80` listener, backend health, relevant security group rules, and subnet routes in AWS. |
-| An older URL has stopped working | Retrieve the current Service hostname again. Recreating the Service or load balancer can invalidate a previously recorded DNS name. |
-| Pod is `Pending`, not ready, or restarting | Run `kubectl describe pods -l app=nginx` and `kubectl logs deployment/nginx`. Inspect image pulls, events, worker capacity, and outbound connectivity through NAT. |
-| Worker nodes are not `Ready` | Run `kubectl describe nodes` and `kubectl get pods -n kube-system`. Inspect node conditions, EKS node group health, networking, and add-on status. |
-| Service has no usable backend endpoints | Run `kubectl get endpointslices -l kubernetes.io/service-name=nginx`. Confirm that the Service selector matches `app: nginx`, the Pod is ready, and `targetPort` is `80`. |
-| kubectl cannot connect or returns `Unauthorized` | Check `aws sts get-caller-identity`, `kubectl config current-context`, and API reachability. Refresh kubeconfig using the cluster creator identity or another identity with granted access. |
-| Terraform destruction reports dependency errors | Confirm the Service and its AWS load balancer have been removed. Wait for dependent network interfaces and security groups to be released before retrying cleanup. |
+The application is exposed through **HTTP on port 80**. HTTPS is not configured for this demonstration.
 
-See the official [Kubernetes Service debugging guide](https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/) for additional endpoint and connectivity checks.
+When the Load Balancer and backend connections are ready, the default NGINX welcome page should appear.
 
-## Architecture Decisions and Limitations
+---
 
-- **Public EKS API access:** Enables remote cluster administration from a local MacBook. Cluster creator administrator access is enabled, and this configuration does not define a public endpoint CIDR allowlist. A production design should review API exposure and administrative scope; see [EKS endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html).
-- **Private worker subnets:** Keep worker placement separate from the internet-facing load balancer, with NAT supporting worker-initiated outbound connectivity.
-- **Single NAT Gateway:** Reduces the number of NAT Gateways billed for the lab, while creating a shared dependency and possible cross-AZ traffic costs.
-- **Small EC2 workers:** `t3.micro` instances have limited CPU, memory, and Pod capacity. The standard, non-GPU `AL2023_x86_64_STANDARD` AMI matches the configured x86_64 instance architecture.
-- **Basic application availability:** NGINX has one replica, with no explicit CPU/memory requests or limits, readiness probes, or liveness probes. Three worker nodes alone do not provide application redundancy.
-- **HTTP without application TLS:** Suitable for this non-sensitive demonstration. A production application would need an appropriate HTTPS/TLS design; Kubernetes API administration separately uses HTTPS.
-- **Costs and production scope:** AWS resources remain chargeable while provisioned. Production use would require further work on capacity, availability, access controls, observability, state management, and operational automation. Dependency and Kubernetes versions also need review before future deployments.
+## Deployment Verification
+
+The application was successfully deployed and tested on Amazon EKS.
+
+The following results were observed during the lab deployment:
+
+| Verification | Result |
+|---|---|
+| EKS Worker Nodes | 3 nodes in `Ready` status |
+| NGINX Pod | `1/1 Running` |
+| Container Restarts | 0 at the time of verification |
+| Kubernetes Deployment | Successfully rolled out |
+| Kubernetes Service | `LoadBalancer` |
+| External DNS | AWS Load Balancer hostname assigned |
+| Browser Accessibility | NGINX welcome page successfully displayed over HTTP |
+
+The deployment was verified using Kubernetes commands and direct browser access through the AWS Load Balancer.
+
+### NGINX Application Screenshot
+
+![NGINX Welcome Page](pictures/nginx-welcome.png)
+
+*Successful NGINX deployment accessed through the AWS Load Balancer. The endpoint is temporary and may change when the infrastructure is recreated.*
+
+---
+
+## Design Decisions
+
+The project was built as a personal Cloud/DevOps learning environment, with the following architectural choices:
+
+**Public EKS API Endpoint**
+
+Public API access was enabled to allow Kubernetes cluster administration from a local MacBook using `kubectl`. Access still requires appropriate AWS authentication and Kubernetes authorization.
+
+**Private Worker Nodes**
+
+The EKS worker nodes are deployed in private subnets to separate application compute resources from direct public internet exposure.
+
+**Single NAT Gateway**
+
+A single NAT Gateway was selected to reduce infrastructure costs for a home lab, rather than deploying a NAT Gateway in each Availability Zone.
+
+**EC2 Instance Type**
+
+`t3.micro` instances were selected for the small demonstration environment. Larger workloads would require additional compute and memory capacity.
+
+**Application Networking**
+
+NGINX is exposed through a Kubernetes LoadBalancer Service over HTTP. A production implementation would require further improvements such as TLS encryption, stronger access restrictions, monitoring, and application availability controls.
+
+---
 
 ## Infrastructure Cleanup
 
-Remove Kubernetes-managed resources while the cluster is available, then confirm AWS load balancer deletion before destroying the Terraform infrastructure. See the [AWS EKS deletion guidance](https://docs.aws.amazon.com/eks/latest/userguide/delete-cluster.html).
+AWS EKS and its supporting infrastructure can continue generating charges while provisioned.
 
-1. **Confirm the cluster context and record the load balancer hostname.**
+To remove the project resources, first delete the Kubernetes Deployment and Service:
 
-   ```bash
-   kubectl config current-context
-   NGINX_LB_HOSTNAME=$(kubectl get svc -n default nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-   printf 'Load balancer to verify after deletion: %s\n' "$NGINX_LB_HOSTNAME"
-   ```
+```bash
+kubectl delete -f nginx-config.yaml
+```
 
-   Keep this terminal open. If the Service has already been deleted or has no hostname, identify any associated project load balancer in the AWS console before continuing.
+Confirm that the NGINX Service has been deleted:
 
-2. **Delete the NGINX Kubernetes resources.**
+```bash
+kubectl get svc nginx
+```
 
-   ```bash
-   kubectl delete -n default -f nginx-config.yaml --wait=true --timeout=10m
-   kubectl get svc -n default nginx
-   ```
+The command should report that the Service is not found.
 
-   The Service lookup should return `NotFound` after successful deletion. AWS resource removal may still be completing.
+Verify in the AWS EC2 console that the associated AWS Load Balancer has also been removed. AWS cleanup may continue briefly after the Kubernetes Service disappears.
 
-3. **Confirm AWS load balancer removal.**
+Once the Load Balancer has been removed, destroy the Terraform-managed infrastructure:
 
-   Using the nonempty hostname recorded in step 1, inspect both AWS load balancer APIs because the manifest does not pin the implementation:
+```bash
+terraform destroy
+```
 
-   ```bash
-   aws elb describe-load-balancers --region eu-central-1 \
-     --query "LoadBalancerDescriptions[?DNSName=='${NGINX_LB_HOSTNAME}'].[LoadBalancerName,DNSName]" \
-     --output table
+Review and confirm the destruction plan.
 
-   aws elbv2 describe-load-balancers --region eu-central-1 \
-     --query "LoadBalancers[?DNSName=='${NGINX_LB_HOSTNAME}'].[LoadBalancerName,DNSName]" \
-     --output table
-   ```
+Finally, verify that no project-related EKS clusters, EC2 instances, NAT Gateways, Load Balancers, or other chargeable AWS resources remain.
 
-   Repeat until both commands succeed and neither returns a matching load balancer, or confirm removal in the AWS EC2 console's **Load Balancers** view. Resolve API or permission errors before treating an empty result as confirmation.
+---
 
-4. **Destroy the Terraform infrastructure.**
+## Future Improvements
 
-   Run this from the project directory and Terraform workspace used for deployment, with its state available:
+Planned improvements to further develop this project include:
 
-   ```bash
-   terraform destroy
-   ```
+- Implementing **GitHub Actions** for automated Terraform formatting and validation.
+- Adding automated Kubernetes manifest validation.
+- Exploring automated Kubernetes application deployment through GitHub Actions.
+- Introducing health checks, resource requests/limits, and additional application availability improvements.
+- Exploring HTTPS/TLS configuration for secure application access.
 
-   Review the destruction plan before approving. Keep the local state until cleanup succeeds so Terraform can track any remaining resources.
+---
 
-5. **Check for billable leftovers.**
+## References
 
-   Review Terraform's completion output, then inspect `eu-central-1` for remaining project resources: the EKS cluster and node group, EC2 workers, NAT Gateway, load balancer, Elastic IP addresses, and any retained volumes or network interfaces. Resolve confirmed project leftovers while preserving unrelated resources.
-
-## Planned Improvements
-
-- Add **GitHub Actions** for automated Terraform formatting/validation and Kubernetes manifest validation. CI/CD workflows are not currently implemented in this repository.
-- Add resource requests/limits and health probes, then evaluate worker sizing and multiple NGINX replicas.
-- Evaluate application HTTPS/TLS, narrower Kubernetes API access, and a shared remote Terraform state backend before expanding the lab.
-
-## Official References
-
-- [AWS: Configure kubectl access to EKS](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html)
-- [AWS: EKS Kubernetes API endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html)
-- [AWS: EKS load balancing guidance](https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html)
-- [AWS: NAT Gateways](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html)
-- [AWS: Delete an EKS cluster and associated resources](https://docs.aws.amazon.com/eks/latest/userguide/delete-cluster.html)
-- [HashiCorp: Terraform validation](https://developer.hashicorp.com/terraform/cli/commands/validate)
-- [Terraform AWS EKS module — v21.29.0](https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/README.md)
-- [Terraform AWS VPC module — v6.7.3](https://github.com/terraform-aws-modules/terraform-aws-vpc/blob/v6.7.3/README.md)
-- [Kubernetes: Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
-- [Kubernetes: Services](https://kubernetes.io/docs/concepts/services-networking/service/)
-- [Kubernetes: Debug Services](https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/)
+- [Amazon EKS Documentation](https://docs.aws.amazon.com/eks/)
+- [Terraform AWS EKS Module](https://github.com/terraform-aws-modules/terraform-aws-eks)
+- [Terraform AWS VPC Module](https://github.com/terraform-aws-modules/terraform-aws-vpc)
+- [Terraform Documentation](https://developer.hashicorp.com/terraform)
+- [Kubernetes Documentation](https://kubernetes.io/docs/home/)
+- [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- [Kubernetes Services](https://kubernetes.io/docs/concepts/services-networking/service/)
