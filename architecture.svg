@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1240" viewBox="0 0 1440 1240" role="img" aria-labelledby="diagram-title diagram-description" font-family="Segoe UI, Arial, sans-serif">
+  <title id="diagram-title">AWS EKS with Terraform: Kubernetes NGINX deployment architecture</title>
+  <desc id="diagram-description">AWS eu-central-1, Frankfurt. VPC myapp-vpc uses example CIDR 10.0.0.0/16. Public subnets 10.0.4.0/24, 10.0.5.0/24, 10.0.6.0/24 contain the internet-facing AWS load balancer and a single NAT Gateway. Private subnets 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24 host the dev EKS managed node group with three desired t3.micro workers, minimum one and maximum three, using AL2023_x86_64_STANDARD. The nginx LoadBalancer Service routes HTTP port 80 to one nginx:1.30.6 Pod, maintained by the nginx Deployment. The MacBook uses the public Kubernetes API over HTTPS 443. Worker outbound internet connections use NAT, separately from inbound web traffic. Worker placement among individual subnets is not prescribed. Mermaid version: architecture.mmd.</desc>
+  <rect x="0" y="0" width="1440" height="1240" rx="0" fill="#ffffff" stroke="none" stroke-width="1.5" />
+  <text x="48" y="55" font-size="32" font-weight="700" fill="#0f172a">AWS EKS with Terraform</text>
+  <text x="48" y="86" font-size="18" font-weight="400" fill="#475569">Kubernetes NGINX deployment / eu-central-1 (Frankfurt)</text>
+  <g id="legend">
+    <line x1="50" y1="121" x2="90" y2="121" stroke="#2563eb" stroke-width="3" />
+    <text x="100" y="126" font-size="15" font-weight="400" fill="#475569">HTTP application traffic</text>
+    <line x1="400" y1="121" x2="440" y2="121" stroke="#0d9488" stroke-width="4" />
+    <text x="450" y="126" font-size="15" font-weight="400" fill="#475569">Outbound NAT</text>
+    <line x1="680" y1="121" x2="720" y2="121" stroke="#7c3aed" stroke-width="3" stroke-dasharray="7 7" />
+    <text x="730" y="126" font-size="15" font-weight="400" fill="#475569">Kubernetes administration</text>
+    <line x1="1065" y1="121" x2="1105" y2="121" stroke="#64748b" stroke-width="3" stroke-dasharray="4 5" />
+    <text x="1115" y="126" font-size="15" font-weight="400" fill="#475569">Workload relationship</text>
+  </g>
+  <g id="boundaries">
+    <rect x="40" y="295" width="1360" height="850" rx="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
+    <text x="70" y="330" font-size="20" font-weight="700" fill="#334155">AWS / eu-central-1</text>
+    <text x="70" y="355" font-size="16" font-weight="400" fill="#64748b">Frankfurt</text>
+    <rect x="70" y="500" width="1300" height="610" rx="18" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" />
+    <text x="100" y="535" font-size="22" font-weight="700" fill="#0f172a">VPC / myapp-vpc</text>
+    <text x="100" y="560" font-size="17" font-weight="400" fill="#475569">10.0.0.0/16</text>
+    <rect x="100" y="580" width="1240" height="175" rx="16" fill="#fffbeb" stroke="#f5d486" stroke-width="1.5" />
+    <text x="120" y="609" font-size="14" font-weight="700" fill="#92400e">PUBLIC SUBNET TIER</text>
+    <rect x="100" y="790" width="1240" height="290" rx="16" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" />
+    <text x="120" y="820" font-size="14" font-weight="700" fill="#1e40af">PRIVATE SUBNET TIER</text>
+    <rect x="710" y="825" width="410" height="240" rx="16" fill="#f0fdf4" stroke="#86c7a1" stroke-width="1.5" />
+    <text x="732" y="852" font-size="14" font-weight="700" fill="#166534">MANAGED NODE GROUP / dev</text>
+  </g>
+  <g id="connections">
+    <path d="M 250 251 V 275 H 430 V 630" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 340 725 V 775 H 510 V 850" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 650 892 H 680 V 970 H 915 V 985" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 720 251 V 350" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 7" />
+    <path d="M 720 460 V 480 H 965 V 775 H 1080 V 865" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 7" />
+    <path d="M 650 1015 H 735" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 5" />
+    <path d="M 1010 960 V 985" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 5" />
+    <path d="M 1095 915 H 1155 V 725" fill="none" stroke="#0d9488" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 1155 630 V 480 H 1185 V 251" fill="none" stroke="#0d9488" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <polygon points="430,630 424.5,618 435.5,618" fill="#2563eb" />
+    <polygon points="510,850 504.5,838 515.5,838" fill="#2563eb" />
+    <polygon points="915,985 909.5,973 920.5,973" fill="#2563eb" />
+    <polygon points="720,350 714.5,338 725.5,338" fill="#7c3aed" />
+    <polygon points="1080,865 1074.5,853 1085.5,853" fill="#7c3aed" />
+    <polygon points="735,1015 723,1020.5 723,1009.5" fill="#64748b" />
+    <polygon points="1010,985 1004.5,973 1015.5,973" fill="#64748b" />
+    <polygon points="1155,725 1160.5,737 1149.5,737" fill="#0d9488" />
+    <polygon points="1185,251 1190.5,263 1179.5,263" fill="#0d9488" />
+  </g>
+  <g id="components">
+    <g>
+      <rect x="110" y="165" width="280" height="86" rx="14" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5" />
+      <text x="130" y="198" font-size="22" font-weight="700" fill="#1e3a8a">Web browser</text>
+      <text x="130" y="225" font-size="16" font-weight="400" fill="#475569">NGINX application access</text>
+    </g>
+    <g>
+      <rect x="530" y="165" width="380" height="86" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1.5" />
+      <text x="550" y="198" font-size="22" font-weight="700" fill="#5b21b6">Developer MacBook</text>
+      <text x="550" y="225" font-size="17" font-weight="400" fill="#475569">Terraform / AWS CLI / kubectl</text>
+    </g>
+    <g>
+      <rect x="1040" y="165" width="290" height="86" rx="14" fill="#f0fdfa" stroke="#99d6cb" stroke-width="1.5" />
+      <text x="1060" y="198" font-size="22" font-weight="700" fill="#115e59">Internet services</text>
+      <text x="1060" y="225" font-size="16" font-weight="400" fill="#475569">Container registries and updates</text>
+    </g>
+    <g>
+      <rect x="530" y="350" width="380" height="110" rx="14" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5" />
+      <text x="550" y="382" font-size="22" font-weight="700" fill="#5b21b6">Amazon EKS control plane</text>
+      <text x="550" y="409" font-size="17" font-weight="400" fill="#334155">myapp-eks-cluster / Kubernetes 1.33</text>
+      <text x="550" y="436" font-size="16" font-weight="400" fill="#6d28d9">Public Kubernetes API endpoint</text>
+    </g>
+    <g>
+      <rect x="160" y="630" width="360" height="95" rx="14" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5" />
+      <text x="180" y="665" font-size="23" font-weight="700" fill="#1e3a8a">AWS Load Balancer</text>
+      <text x="180" y="695" font-size="18" font-weight="400" fill="#475569">Internet-facing / HTTP port 80</text>
+    </g>
+    <g>
+      <rect x="1020" y="630" width="270" height="95" rx="14" fill="#ffffff" stroke="#99d6cb" stroke-width="1.5" />
+      <text x="1040" y="665" font-size="23" font-weight="700" fill="#115e59">NAT Gateway</text>
+      <text x="1040" y="695" font-size="17" font-weight="400" fill="#475569">Single shared gateway</text>
+    </g>
+    <text x="580" y="653" font-size="13" font-weight="700" fill="#92400e">SUBNET CIDRs</text>
+    <text x="580" y="679" font-size="19" font-weight="400" fill="#475569">10.0.4.0/24</text>
+    <text x="580" y="704" font-size="19" font-weight="400" fill="#475569">10.0.5.0/24</text>
+    <text x="580" y="729" font-size="19" font-weight="400" fill="#475569">10.0.6.0/24</text>
+    <g>
+      <rect x="120" y="850" width="210" height="200" rx="14" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5" />
+      <text x="140" y="881" font-size="13" font-weight="700" fill="#1e40af">SUBNET CIDRs</text>
+      <text x="140" y="918" font-size="19" font-weight="400" fill="#475569">10.0.1.0/24</text>
+      <text x="140" y="951" font-size="19" font-weight="400" fill="#475569">10.0.2.0/24</text>
+      <text x="140" y="984" font-size="19" font-weight="400" fill="#475569">10.0.3.0/24</text>
+      <text x="140" y="1024" font-size="16" font-weight="400" fill="#64748b">Worker subnet tier</text>
+    </g>
+    <g>
+      <rect x="370" y="850" width="280" height="85" rx="14" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5" />
+      <text x="390" y="883" font-size="22" font-weight="700" fill="#1e3a8a">Service: nginx</text>
+      <text x="390" y="912" font-size="18" font-weight="400" fill="#475569">LoadBalancer / port 80</text>
+    </g>
+    <g>
+      <rect x="735" y="865" width="360" height="95" rx="14" fill="#ffffff" stroke="#86c7a1" stroke-width="1.5" />
+      <text x="755" y="897" font-size="22" font-weight="700" fill="#166534">3 x t3.micro workers</text>
+      <text x="755" y="924" font-size="17" font-weight="400" fill="#475569">Desired 3 / Min 1 / Max 3</text>
+      <text x="755" y="947" font-size="16" font-weight="400" fill="#475569">Amazon Linux 2023 / x86_64</text>
+    </g>
+    <g>
+      <rect x="370" y="980" width="280" height="70" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+      <text x="390" y="1009" font-size="20" font-weight="700" fill="#334155">Deployment: nginx</text>
+      <text x="390" y="1033" font-size="16" font-weight="400" fill="#64748b">Maintains one replica</text>
+    </g>
+    <g>
+      <rect x="735" y="985" width="360" height="60" rx="14" fill="#ffffff" stroke="#86c7a1" stroke-width="1.5" />
+      <text x="755" y="1010" font-size="20" font-weight="700" fill="#166534">NGINX Pod / 1 replica</text>
+      <text x="755" y="1033" font-size="16" font-weight="400" fill="#475569">nginx:1.30.6 / port 80</text>
+    </g>
+  </g>
+  <g id="connection-labels">
+    <rect x="365" y="405" width="130" height="30" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="377" y="425.0" font-size="14" font-weight="600" fill="#2563eb">HTTP / port 80</text>
+    <rect x="358" y="760" width="162" height="28" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="370" y="779.0" font-size="14" font-weight="600" fill="#2563eb">Application routing</text>
+    <rect x="740" y="961" width="156" height="22" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="752" y="977.0" font-size="14" font-weight="600" fill="#2563eb">targetPort / 80</text>
+    <rect x="750" y="278" width="196" height="28" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="762" y="297.0" font-size="14" font-weight="600" fill="#7c3aed">HTTPS / port 443 / kubectl</text>
+    <rect x="780" y="465" width="192" height="28" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="792" y="484.0" font-size="14" font-weight="600" fill="#7c3aed">Cluster management</text>
+    <rect x="1160" y="800" width="180" height="30" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="1172" y="820.0" font-size="14" font-weight="600" fill="#0d9488">Outbound connections</text>
+    <rect x="1093" y="407" width="204" height="30" rx="7" fill="#ffffff" stroke="none" stroke-width="1.5" />
+    <text x="1105" y="427.0" font-size="14" font-weight="600" fill="#0d9488">Outbound internet access</text>
+  </g>
+</svg>

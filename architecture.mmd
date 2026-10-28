@@ -1,0 +1,39 @@
+flowchart TB
+    workstation["Developer MacBook<br/>Terraform / AWS CLI / kubectl"]
+    browser["Web browser<br/>NGINX application access"]
+    internet["Internet services<br/>Container registries and updates"]
+
+    subgraph aws["AWS: eu-central-1 / Frankfurt"]
+        api["Amazon EKS managed control plane<br/>myapp-eks-cluster / Kubernetes 1.33<br/>Public Kubernetes API endpoint"]
+
+        subgraph vpc["VPC: myapp-vpc / 10.0.0.0/16"]
+            subgraph public_tier["Public subnet tier"]
+                public_cidrs["10.0.4.0/24<br/>10.0.5.0/24<br/>10.0.6.0/24"]
+                lb["Internet-facing AWS Load Balancer<br/>HTTP port 80"]
+                nat["Single NAT Gateway"]
+            end
+
+            subgraph private_tier["Private subnet tier"]
+                private_cidrs["10.0.1.0/24<br/>10.0.2.0/24<br/>10.0.3.0/24"]
+                service["Kubernetes Service: nginx<br/>type: LoadBalancer / port 80"]
+                deployment["Deployment: nginx<br/>1 replica"]
+
+                subgraph nodegroup["EKS managed node group: dev"]
+                    nodes["EC2 workers: t3.micro<br/>Desired: 3 / Minimum: 1 / Maximum: 3<br/>AL2023_x86_64_STANDARD"]
+                    pod["NGINX Pod<br/>Image: nginx:1.30.6 / port 80"]
+                end
+            end
+        end
+    end
+
+    browser -->|HTTP port 80| lb
+    lb -->|Application traffic| service
+    service -->|Routes to Pod: targetPort 80| pod
+
+    workstation -.->|Administration: HTTPS port 443| api
+    api -.->|Cluster management| nodes
+    deployment -.->|Maintains one replica| pod
+    nodes -.->|Hosts| pod
+
+    nodes ==>|Outbound connections| nat
+    nat ==>|Outbound internet access| internet
