@@ -150,7 +150,7 @@ The public and private subnets include Kubernetes-specific tags that support AWS
 | Setting | Configuration |
 |---|---|
 | Cluster Name | `myapp-eks-cluster` |
-| Kubernetes Version | `1.33` |
+| Kubernetes Version | `1.36` |
 | Node Group | `dev` |
 | Instance Type | `t3.micro` |
 | AMI Type | `AL2023_x86_64_STANDARD` |
