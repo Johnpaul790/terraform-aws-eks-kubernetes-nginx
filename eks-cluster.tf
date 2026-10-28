@@ -8,9 +8,11 @@ module "eks" {
   subnet_ids = module.myapp-vpc.private_subnets
   vpc_id     = module.myapp-vpc.vpc_id
 
+
   endpoint_public_access                   = true
   enable_cluster_creator_admin_permissions = true
   endpoint_public_access_cidrs             = [var.my_public_ip_cidr]
+
 
   addons = {
     coredns = {}
