@@ -50,7 +50,12 @@ metadata:
   name: nginx
   labels:
     app: nginx
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
 spec:
+  type: LoadBalancer
+  loadBalancerClass: service.k8s.aws/nlb
   ports:
     - name: http
       port: 80
@@ -58,5 +63,3 @@ spec:
       targetPort: 80
   selector:
     app: nginx
-  type: LoadBalancer
-
