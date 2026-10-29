@@ -14,3 +14,6 @@
 
 # macOS Finder files
 .DS_Store
+
+# AWS Load Balancer Controller IAM policy
+iam_policy.json
